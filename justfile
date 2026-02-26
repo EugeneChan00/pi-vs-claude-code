@@ -77,7 +77,10 @@ ext-theme-cycler:
 
 # utils
 
-# Open pi with one or more stacked extensions in a new terminal: just open minimal tool-counter
+# Run pi with one or more stacked extensions in the current terminal:
+#   just open minimal tool-counter
+# If you want a new window instead:
+#   PI_VS_CC_SPAWN=1 just open minimal tool-counter
 open +exts:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -89,13 +92,14 @@ open +exts:
         args="$args -e extensions/$ext.ts"
     done
     cmd="cd '{{justfile_directory()}}' && pi$args"
-    # If there's no GUI session, run in the current terminal.
-    if [ -z "${DISPLAY:-}" ] && [ -z "${WAYLAND_DISPLAY:-}" ]; then
+
+    # Default: run in the current terminal.
+    if [ "${PI_VS_CC_SPAWN:-0}" != "1" ]; then
         exec bash -lc "$cmd"
     fi
 
-    # Optional override: force a specific terminal launcher.
-    # Example: PI_VS_CC_TERM=konsole just open minimal theme-cycler
+    # Spawn a new terminal window (optional).
+    # Example: PI_VS_CC_TERM=konsole PI_VS_CC_SPAWN=1 just open minimal theme-cycler
     case "${PI_VS_CC_TERM:-}" in
         kitty)
             if command -v kitty >/dev/null 2>&1; then
@@ -170,19 +174,27 @@ cmd +exts:
     done
     echo "cd '{{justfile_directory()}}' && pi$args"
 
-# Open every extension in its own terminal window
+# Spawn a new terminal window explicitly (wrapper around `open`)
+spawn +exts:
+    PI_VS_CC_SPAWN=1 just open {{exts}}
+
+# Open every extension in its own terminal window (spawn mode)
+all-spawn:
+    PI_VS_CC_SPAWN=1 just open pi
+    PI_VS_CC_SPAWN=1 just open pure-focus 
+    PI_VS_CC_SPAWN=1 just open minimal theme-cycler
+    PI_VS_CC_SPAWN=1 just open cross-agent minimal
+    PI_VS_CC_SPAWN=1 just open purpose-gate minimal
+    PI_VS_CC_SPAWN=1 just open tool-counter
+    PI_VS_CC_SPAWN=1 just open tool-counter-widget minimal
+    PI_VS_CC_SPAWN=1 just open subagent-widget pure-focus theme-cycler
+    PI_VS_CC_SPAWN=1 just open tilldone theme-cycler
+    PI_VS_CC_SPAWN=1 just open agent-team theme-cycler
+    PI_VS_CC_SPAWN=1 just open system-select minimal theme-cycler
+    PI_VS_CC_SPAWN=1 just open damage-control minimal theme-cycler
+    PI_VS_CC_SPAWN=1 just open agent-chain theme-cycler
+    PI_VS_CC_SPAWN=1 just open pi-pi theme-cycler
+
+# Run a single Pi session (current terminal by default)
 all:
     just open pi
-    just open pure-focus 
-    just open minimal theme-cycler
-    just open cross-agent minimal
-    just open purpose-gate minimal
-    just open tool-counter
-    just open tool-counter-widget minimal
-    just open subagent-widget pure-focus theme-cycler
-    just open tilldone theme-cycler
-    just open agent-team theme-cycler
-    just open system-select minimal theme-cycler
-    just open damage-control minimal theme-cycler
-    just open agent-chain theme-cycler
-    just open pi-pi theme-cycler
