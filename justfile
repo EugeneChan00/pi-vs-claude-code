@@ -80,14 +80,95 @@ ext-theme-cycler:
 # Open pi with one or more stacked extensions in a new terminal: just open minimal tool-counter
 open +exts:
     #!/usr/bin/env bash
+    set -euo pipefail
     args=""
     for ext in {{exts}}; do
+        if [ "$ext" = "pi" ]; then
+            continue
+        fi
         args="$args -e extensions/$ext.ts"
     done
     cmd="cd '{{justfile_directory()}}' && pi$args"
-    escaped="${cmd//\\/\\\\}"
-    escaped="${escaped//\"/\\\"}"
-    osascript -e "tell application \"Terminal\" to do script \"$escaped\""
+    # If there's no GUI session, run in the current terminal.
+    if [ -z "${DISPLAY:-}" ] && [ -z "${WAYLAND_DISPLAY:-}" ]; then
+        exec bash -lc "$cmd"
+    fi
+
+    # Optional override: force a specific terminal launcher.
+    # Example: PI_VS_CC_TERM=konsole just open minimal theme-cycler
+    case "${PI_VS_CC_TERM:-}" in
+        kitty)
+            if command -v kitty >/dev/null 2>&1; then
+                kitty --detach bash -lc "$cmd" >/dev/null 2>&1 || true
+                exit 0
+            fi
+            ;;
+        konsole)
+            if command -v konsole >/dev/null 2>&1; then
+                konsole --separate --hold -e bash -lc "$cmd" >/dev/null 2>&1 &
+                exit 0
+            fi
+            ;;
+        gnome-terminal)
+            if command -v gnome-terminal >/dev/null 2>&1; then
+                gnome-terminal -- bash -lc "$cmd" >/dev/null 2>&1 &
+                exit 0
+            fi
+            ;;
+        xterm)
+            if command -v xterm >/dev/null 2>&1; then
+                xterm -e bash -lc "$cmd" >/dev/null 2>&1 &
+                exit 0
+            fi
+            ;;
+    esac
+
+    # Kitty (default on Linux)
+    if command -v kitty >/dev/null 2>&1; then
+        kitty --detach bash -lc "$cmd" >/dev/null 2>&1 || true
+        exit 0
+    fi
+
+    # KDE Konsole
+    if command -v konsole >/dev/null 2>&1; then
+        konsole --separate --hold -e bash -lc "$cmd" >/dev/null 2>&1 &
+        exit 0
+    fi
+
+    # GNOME Terminal
+    if command -v gnome-terminal >/dev/null 2>&1; then
+        gnome-terminal -- bash -lc "$cmd" >/dev/null 2>&1 &
+        exit 0
+    fi
+
+    # xterm fallback
+    if command -v xterm >/dev/null 2>&1; then
+        xterm -e bash -lc "$cmd" >/dev/null 2>&1 &
+        exit 0
+    fi
+
+    # macOS Terminal.app
+    if command -v osascript >/dev/null 2>&1; then
+        escaped="${cmd//\\/\\\\}"
+        escaped="${escaped//\"/\\\"}"
+        osascript -e "tell application \"Terminal\" to do script \"$escaped\""
+        exit 0
+    fi
+
+    echo "No supported terminal launcher found; running in current terminal."
+    exec bash -lc "$cmd"
+
+cmd +exts:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    args=""
+    for ext in {{exts}}; do
+        if [ "$ext" = "pi" ]; then
+            continue
+        fi
+        args="$args -e extensions/$ext.ts"
+    done
+    echo "cd '{{justfile_directory()}}' && pi$args"
 
 # Open every extension in its own terminal window
 all:
