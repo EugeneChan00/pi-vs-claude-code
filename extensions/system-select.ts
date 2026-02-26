@@ -79,6 +79,7 @@ export default function (pi: ExtensionAPI) {
 			[join(cwd, ".claude", "agents"), ".claude"],
 			[join(cwd, ".gemini", "agents"), ".gemini"],
 			[join(cwd, ".codex", "agents"), ".codex"],
+			[join(home, ".pi", "agents"), "~/.pi/agents"],
 			[join(home, ".pi", "agent", "agents"), "~/.pi"],
 			[join(home, ".claude", "agents"), "~/.claude"],
 			[join(home, ".gemini", "agents"), "~/.gemini"],

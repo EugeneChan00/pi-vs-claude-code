@@ -22,6 +22,7 @@ import { Type } from "@sinclair/typebox";
 import { Text, type AutocompleteItem, truncateToWidth, visibleWidth } from "@mariozechner/pi-tui";
 import { spawn } from "child_process";
 import { readdirSync, readFileSync, existsSync, mkdirSync, unlinkSync } from "fs";
+import { homedir } from "os";
 import { join, resolve } from "path";
 import { applyExtensionDefaults } from "./themeMap.ts";
 
@@ -105,10 +106,13 @@ function parseAgentFile(filePath: string): AgentDef | null {
 }
 
 function scanAgentDirs(cwd: string): AgentDef[] {
+	const home = homedir();
 	const dirs = [
 		join(cwd, "agents"),
 		join(cwd, ".claude", "agents"),
 		join(cwd, ".pi", "agents"),
+		join(home, ".pi", "agents"),
+		join(home, ".pi", "agent", "agents"),
 	];
 
 	const agents: AgentDef[] = [];
@@ -154,9 +158,16 @@ export default function (pi: ExtensionAPI) {
 		// Load all agent definitions
 		allAgentDefs = scanAgentDirs(cwd);
 
-		// Load teams from .pi/agents/teams.yaml
-		const teamsPath = join(cwd, ".pi", "agents", "teams.yaml");
-		if (existsSync(teamsPath)) {
+		// Load teams from teams.yaml (project-local or global)
+		const home = homedir();
+		const teamsPathCandidates = [
+			join(cwd, ".pi", "agents", "teams.yaml"),
+			join(cwd, "agents", "teams.yaml"),
+			join(home, ".pi", "agents", "teams.yaml"),
+			join(home, ".pi", "agent", "agents", "teams.yaml"),
+		];
+		const teamsPath = teamsPathCandidates.find((p) => existsSync(p));
+		if (teamsPath) {
 			try {
 				teams = parseTeamsYaml(readFileSync(teamsPath, "utf-8"));
 			} catch {
@@ -568,7 +579,7 @@ export default function (pi: ExtensionAPI) {
 			widgetCtx = ctx;
 			const teamNames = Object.keys(teams);
 			if (teamNames.length === 0) {
-				ctx.ui.notify("No teams defined in .pi/agents/teams.yaml", "warning");
+				ctx.ui.notify("No teams defined (looked in .pi/agents/, agents/, ~/.pi/agents/)", "warning");
 				return;
 			}
 
@@ -702,7 +713,7 @@ ${agentCatalog}`,
 		const members = Array.from(agentStates.values()).map(s => displayName(s.def.name)).join(", ");
 		_ctx.ui.notify(
 			`Team: ${activeTeamName} (${members})\n` +
-			`Team sets loaded from: .pi/agents/teams.yaml\n\n` +
+			`Teams loaded from teams.yaml (.pi/agents/, agents/, ~/.pi/agents/)\n\n` +
 			`/agents-team          Select a team\n` +
 			`/agents-list          List active agents and status\n` +
 			`/agents-grid <1-6>    Set grid column count`,

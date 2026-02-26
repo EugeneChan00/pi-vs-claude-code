@@ -26,6 +26,7 @@ import { Type } from "@sinclair/typebox";
 import { Text, truncateToWidth, visibleWidth } from "@mariozechner/pi-tui";
 import { spawn } from "child_process";
 import { readFileSync, existsSync, readdirSync, mkdirSync, unlinkSync } from "fs";
+import { homedir } from "os";
 import { join, resolve } from "path";
 import { applyExtensionDefaults } from "./themeMap.ts";
 
@@ -160,10 +161,13 @@ function parseAgentFile(filePath: string): AgentDef | null {
 }
 
 function scanAgentDirs(cwd: string): Map<string, AgentDef> {
+	const home = homedir();
 	const dirs = [
 		join(cwd, "agents"),
 		join(cwd, ".claude", "agents"),
 		join(cwd, ".pi", "agents"),
+		join(home, ".pi", "agents"),
+		join(home, ".pi", "agent", "agents"),
 	];
 
 	const agents = new Map<string, AgentDef>();
@@ -213,8 +217,15 @@ export default function (pi: ExtensionAPI) {
 			agentSessions.set(key, existsSync(sessionFile) ? sessionFile : null);
 		}
 
-		const chainPath = join(cwd, ".pi", "agents", "agent-chain.yaml");
-		if (existsSync(chainPath)) {
+		const home = homedir();
+		const chainPathCandidates = [
+			join(cwd, ".pi", "agents", "agent-chain.yaml"),
+			join(cwd, "agents", "agent-chain.yaml"),
+			join(home, ".pi", "agents", "agent-chain.yaml"),
+			join(home, ".pi", "agent", "agents", "agent-chain.yaml"),
+		];
+		const chainPath = chainPathCandidates.find((p) => existsSync(p));
+		if (chainPath) {
 			try {
 				chains = parseChainYaml(readFileSync(chainPath, "utf-8"));
 			} catch {
@@ -595,7 +606,7 @@ export default function (pi: ExtensionAPI) {
 		handler: async (_args, ctx) => {
 			widgetCtx = ctx;
 			if (chains.length === 0) {
-				ctx.ui.notify("No chains defined in .pi/agents/agent-chain.yaml", "warning");
+				ctx.ui.notify("No chains defined (looked in .pi/agents/, agents/, ~/.pi/agents/)", "warning");
 				return;
 			}
 
@@ -624,7 +635,7 @@ export default function (pi: ExtensionAPI) {
 		handler: async (_args, ctx) => {
 			widgetCtx = ctx;
 			if (chains.length === 0) {
-				ctx.ui.notify("No chains defined in .pi/agents/agent-chain.yaml", "warning");
+				ctx.ui.notify("No chains defined (looked in .pi/agents/, agents/, ~/.pi/agents/)", "warning");
 				return;
 			}
 
